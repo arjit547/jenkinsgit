@@ -15,7 +15,7 @@ pipeline {
         stage('Test SSH Login') {
             steps {
                 sshagent(['my-ssh-key']) {
-                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-13-219-77-142 "echo SSH login successful"'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "echo SSH login successful"'
                 }
             }
         }
