@@ -1,109 +1,115 @@
 pipeline {
     agent any
 
-    environment {
-        LATEST_IMAGE_TAG = 'myapp:latest'
-        OLD_IMAGE_TAG = 'myapp:old_image'
-        CONTAINER_NAME = 'beautiful_davinci'
-        DOCKERFILE_PATH = '/home/ubuntu/frontend/Dockerfile'
-        WORKDIR = '/home/ubuntu/frontend'
-        HOST_PORT = '3000'
-        CONTAINER_PORT = '3000'
-        SSH_HOST = 'ubuntu@13.219.77.142'
-    }
-
     stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Test SSH Login') {
             steps {
-                sshagent(['my-ssh-key']) {
-                    sh 'ssh -o StrictHostKeyChecking=no $SSH_HOST "echo SSH login successful"'
+                sshagent(['ubuntu']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 echo SSH login successful'
+                }
+            }
+        }
+
+        stage('Pull Latest Code on Server') {
+            steps {
+                sshagent(['ubuntu']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
+                        cd /home/ubuntu/frontend &&
+                        git reset --hard &&
+                        git pull origin main
+                    "
+                    '''
                 }
             }
         }
 
         stage('Remove Old Backup Image') {
             steps {
-                sshagent(['my-ssh-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no $SSH_HOST '
-                        oldImageId=\$(docker images -q ${OLD_IMAGE_TAG});
-                        if [ ! -z "\$oldImageId" ]; then
-                            echo "Removing old image: ${OLD_IMAGE_TAG}";
-                            docker rmi ${OLD_IMAGE_TAG};
+                sshagent(['ubuntu']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
+                        oldImageId=$(docker images -q myapp:old_image);
+                        if [ ! -z "$oldImageId" ]; then
+                            echo 'Removing old image: myapp:old_image';
+                            docker rmi myapp:old_image;
                         else
-                            echo "No old image found.";
+                            echo 'No old image found.';
                         fi
-                        '
-                    """
+                    "
+                    '''
                 }
             }
         }
 
         stage('Tag Current Latest as Old') {
             steps {
-                sshagent(['my-ssh-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no $SSH_HOST '
-                        currentImageId=\$(docker images -q ${LATEST_IMAGE_TAG});
-                        if [ ! -z "\$currentImageId" ]; then
-                            echo "Tagging current latest as old_image";
-                            docker tag ${LATEST_IMAGE_TAG} ${OLD_IMAGE_TAG};
+                sshagent(['ubuntu']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
+                        currentImageId=$(docker images -q myapp:latest);
+                        if [ ! -z "$currentImageId" ]; then
+                            echo 'Tagging current latest as old_image';
+                            docker tag myapp:latest myapp:old_image;
                         else
-                            echo "No latest image found to tag.";
+                            echo 'No latest image found to tag.';
                         fi
-                        '
-                    """
+                    "
+                    '''
                 }
             }
         }
 
-        stage('Build New Docker Image') {
+        stage('Build New Docker Image (No Cache)') {
             steps {
-                sshagent(['my-ssh-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no $SSH_HOST '
-                        cd ${WORKDIR}
-                        docker build -t ${LATEST_IMAGE_TAG} -f ${DOCKERFILE_PATH} .
-                        '
-                    """
+                sshagent(['ubuntu']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
+                        cd /home/ubuntu/frontend &&
+                        docker build --no-cache -t myapp:latest -f Dockerfile .
+                    "
+                    '''
                 }
             }
         }
 
         stage('Restart Container') {
             steps {
-                sshagent(['my-ssh-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no $SSH_HOST '
-                        containerId=\$(docker ps -q --filter name=${CONTAINER_NAME});
-                        if [ ! -z "\$containerId" ]; then
-                            echo "Stopping and removing running container: ${CONTAINER_NAME}";
-                            docker stop \$containerId;
-                            docker rm \$containerId;
+                sshagent(['ubuntu']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
+                        containerId=$(docker ps -q --filter name=beautiful_davinci);
+                        if [ ! -z \"$containerId\" ]; then
+                            echo 'Stopping and removing running container: beautiful_davinci';
+                            docker stop $containerId;
+                            docker rm $containerId;
                         else
-                            echo "No container is currently running.";
+                            echo 'No container is currently running.';
                         fi
-                        echo "Running new container from latest image...";
-                        docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} --name ${CONTAINER_NAME} ${LATEST_IMAGE_TAG};
-                        '
-                    """
+                        echo 'Running new container from latest image...';
+                        docker run -d -p 3000:3000 --name beautiful_davinci myapp:latest;
+                    "
+                    '''
                 }
             }
         }
     }
 
     post {
-        failure {
-            echo 'Docker build or deployment failed. Check logs.'
-        }
         success {
             echo 'Deployment completed successfully.'
         }
+        failure {
+            echo 'Deployment failed!'
+        }
     }
 }
-
-
-
 
 
 
