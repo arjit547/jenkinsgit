@@ -10,7 +10,7 @@ pipeline {
 
         stage('Test SSH Login') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh 'ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 echo SSH login successful'
                 }
             }
@@ -18,7 +18,7 @@ pipeline {
 
         stage('Pull Latest Code on Server') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
                         cd /home/ubuntu/frontend &&
@@ -32,7 +32,7 @@ pipeline {
 
         stage('Remove Old Backup Image') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
                         oldImageId=$(docker images -q myapp:old_image);
@@ -50,7 +50,7 @@ pipeline {
 
         stage('Tag Current Latest as Old') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
                         currentImageId=$(docker images -q myapp:latest);
@@ -68,7 +68,7 @@ pipeline {
 
         stage('Build New Docker Image (No Cache)') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
                         cd /home/ubuntu/frontend &&
@@ -81,7 +81,7 @@ pipeline {
 
         stage('Restart Container') {
             steps {
-                sshagent(['ubuntu']) {
+                sshagent(['my-ssh-key']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no ubuntu@13.219.77.142 "
                         containerId=$(docker ps -q --filter name=beautiful_davinci);
@@ -110,8 +110,6 @@ pipeline {
         }
     }
 }
-
-
 
 
 
