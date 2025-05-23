@@ -12,6 +12,14 @@ pipeline {
     }
 
     stages {
+        stage('Test SSH Login') {
+            steps {
+                sshagent(['my-ssh-key']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@your-remote-server "echo SSH login successful"'
+                }
+            }
+        }
+
         stage('Remove Old Backup Image') {
             steps {
                 script {
