@@ -8,7 +8,7 @@ pipeline {
         WORKDIR = '/home/ubuntu/frontend'
         HOST_PORT = '3000'
         CONTAINER_PORT = '3000'
-        REMOTE_HOST = 'ubuntu@13.219.77.142'
+        REMOTE_HOST = 'ubuntu@44.211.217.170'
     }
 
     stages {
